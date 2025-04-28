@@ -1,4 +1,3 @@
-
 # Supervision
 [![version](https://badge.fury.io/py/supervision.svg)](https://badge.fury.io/py/supervision)
 [![downloads](https://img.shields.io/pypi/dm/supervision)](https://pypistats.org/packages/supervision)
@@ -10,60 +9,52 @@
 [![discord](https://img.shields.io/discord/1159501506232451173?logo=discord&label=discord&labelColor=fff&color=5865f2&link=https%3A%2F%2Fdiscord.gg%2FGbfgXGJ8Bk)](https://discord.gg/GbfgXGJ8Bk)
 [![built-with-material-for-mkdocs](https://img.shields.io/badge/Material_for_MkDocs-526CFE?logo=MaterialForMkDocs&logoColor=white)](https://squidfunk.github.io/mkdocs-material/)
 
-
-
-</div>
-
 ## 👋 hello
 
-**We write your reusable computer vision tools. 💜**
+**Supervision: The missing toolkit for computer vision developers**
 
-## Project Overview
+Supervision is a set of easy-to-use utilities that streamline your computer vision workflow. It abstracts away complex boilerplate code, letting you focus on building powerful applications instead of reinventing the wheel.
 
-Supervision is an open-source Python library designed to simplify the development of computer vision applications. It provides a collection of modular, reusable tools that address common tasks in computer vision, such as object detection, tracking, annotation, and dataset management. By leveraging Supervision, developers can accelerate their workflows, reduce complexity, and focus on building innovative solutions.
+### What Makes Supervision Different?
 
-### Key Features
+- **Truly Model-Agnostic**: Works seamlessly with all popular CV models (YOLO, MMDetection, HuggingFace, etc.)
+- **Modular Design**: Use only what you need - detection, tracking, visualization, dataset handling
+- **Production-Ready**: Optimized for real-world applications with high performance requirements
+- **Extensive Documentation**: Comprehensive guides, cookbooks, and API references
 
-- **Model Agnostic**: Supports various computer vision models, including Ultralytics, Transformers, and MMDetection.
-- **Inference**: Easily integrate with Roboflow for model inference.
-- **Annotators**: Provides tools for annotating images and videos with bounding boxes, masks, and more.
-- **Datasets**: Simplifies loading, splitting, merging, and saving datasets in popular formats like COCO, YOLO, and Pascal VOC.
-- **Metrics**: Calculate common evaluation metrics like mAP, precision, recall, and F1 score.
-- **Tracking**: Incorporate object tracking capabilities with ByteTrack integration.
-- **Video Processing**: Utilities for handling video frames, FPS monitoring, and video file manipulation.
+Whether you're prototyping a concept or deploying to production, Supervision provides the tools to get there faster.
 
-### Goals
+## 💻 installation options
 
-The Supervision project aims to:
-
-- **Enhance System Monitoring**: Offer real-time insights into the performance of computer vision models, detecting anomalies and ensuring optimal operation.
-- **Improve Security & Compliance**: Ensure the library adheres to security best practices and industry standards, protecting user data and ensuring compliance.
-- **Optimize Performance**: Provide efficient, optimized code that leverages hardware acceleration where possible.
-- **User-Friendly Interface**: Develop an intuitive API with comprehensive documentation and examples to make it accessible to developers of all levels.
-- **Scalability**: Support large-scale datasets and real-time processing requirements, making it suitable for both small projects and enterprise-level applications.
-
-### Why Supervision?
-
-Developing computer vision applications can be complex and time-consuming, requiring expertise in multiple areas such as object detection, tracking, annotation, and dataset management. Supervision addresses this by providing a unified, easy-to-use interface for these common tasks, allowing developers to focus on their specific application logic rather than reinventing the wheel.
-
-### Expected Outcomes
-
-By using Supervision, developers can expect to:
-
-- Reduce development time for computer vision projects.
-- Improve the reliability and performance of their vision systems.
-- Benefit from a community-driven library that is continuously updated and improved.
-
-## 💻 install
-
-Pip install the supervision package in a
-[**Python>=3.8**](https://www.python.org/) environment.
-
+### Pip (Recommended)
 ```bash
 pip install supervision
 ```
 
-Read more about conda, mamba, and installing from source in our [guide](https://roboflow.github.io/supervision/).
+### With metrics support
+```bash
+pip install "supervision[metrics]"
+```
+
+### Using Poetry
+```bash
+poetry add supervision
+# With metrics support
+poetry add "supervision[metrics]"
+```
+
+### From source (for developers)
+```bash
+git clone https://github.com/roboflow/supervision.git
+cd supervision
+pip install -e .
+```
+
+### Version compatibility
+- Works with **Python 3.8-3.13**
+- Thoroughly tested across Linux, macOS, and Windows
+
+For more detailed installation information, visit our [installation guide](https://roboflow.github.io/supervision/).
 
 ## 🔐 Environment Variables
 
@@ -260,7 +251,7 @@ for path, image, annotation in ds:
 
 ### tracking
 
-Tracking objects in video streams is a common task in computer vision. Supervision makes it easy with its ByteTrack integration:
+Track objects across video frames with ByteTrack integration:
 
 ```python
 import supervision as sv
@@ -268,47 +259,119 @@ from ultralytics import YOLO
 
 model = YOLO("yolov8n.pt")
 tracker = sv.ByteTrack()
+box_annotator = sv.BoxAnnotator()
+trace_annotator = sv.TraceAnnotator(thickness=2, trace_length=20)
 
-video_info = sv.VideoInfo.from_video_path(video_path="video.mp4")
-frames_generator = sv.get_video_frames_generator(source_path="video.mp4")
+video_info = sv.VideoInfo.from_video_path("video.mp4")
+frames_generator = sv.get_video_frames_generator("video.mp4")
 
-with sv.VideoSink(target_path="output.mp4", video_info=video_info) as sink:
+with sv.VideoSink("output.mp4", video_info) as sink:
     for frame in frames_generator:
         result = model(frame)[0]
         detections = sv.Detections.from_ultralytics(result)
         detections = tracker.update_with_detections(detections)
         
-        box_annotator = sv.BoxAnnotator()
-        trace_annotator = sv.TraceAnnotator()
+        # Create labels with tracking IDs
+        labels = [f"#{tracker_id}" for tracker_id in detections.tracker_id]
         
+        # Annotate frame with both boxes and traces
         annotated_frame = frame.copy()
         annotated_frame = trace_annotator.annotate(scene=annotated_frame, detections=detections)
-        annotated_frame = box_annotator.annotate(scene=annotated_frame, detections=detections)
+        annotated_frame = box_annotator.annotate(
+            scene=annotated_frame, 
+            detections=detections, 
+            labels=labels
+        )
         
         sink.write_frame(annotated_frame)
 ```
 
 https://github.com/roboflow/supervision/assets/26109316/3ac6982f-4943-4108-9b7f-51787ef1a69f
 
+### speed estimation example
+
+Use perspective transformation to estimate object speed from a video:
+
+```python
+# From examples/speed_estimation/ultralytics_example.py
+import cv2
+import numpy as np
+from collections import defaultdict, deque
+from ultralytics import YOLO
+import supervision as sv
+
+# Define perspective transform points
+SOURCE = np.array([[1252, 787], [2298, 803], [5039, 2159], [-550, 2159]])
+TARGET_WIDTH, TARGET_HEIGHT = 25, 250
+TARGET = np.array([
+    [0, 0],
+    [TARGET_WIDTH - 1, 0],
+    [TARGET_WIDTH - 1, TARGET_HEIGHT - 1],
+    [0, TARGET_HEIGHT - 1],
+])
+
+# Initialize components
+video_info = sv.VideoInfo.from_video_path("vehicles.mp4")
+model = YOLO("yolov8x.pt")
+byte_track = sv.ByteTrack(frame_rate=video_info.fps)
+polygon_zone = sv.PolygonZone(polygon=SOURCE)
+
+# Create annotators
+box_annotator = sv.BoxAnnotator()
+label_annotator = sv.LabelAnnotator(text_position=sv.Position.BOTTOM_CENTER)
+trace_annotator = sv.TraceAnnotator(trace_length=video_info.fps * 2)
+
+# Process video
+coordinates = defaultdict(lambda: deque(maxlen=video_info.fps))
+```
+
+Check the complete example in the [examples directory](https://github.com/roboflow/supervision/tree/main/examples/speed_estimation).
+
 ### metrics
 
-Evaluate your model's performance with built-in metrics:
+Evaluate model performance with comprehensive metrics:
 
 ```python
 import supervision as sv
+from ultralytics import YOLO
 
-predictions = sv.Detections(...)
-targets = sv.Detections(...)
+# Load model and dataset
+model = YOLO("yolov8n.pt")
+dataset = sv.DetectionDataset.from_yolo(...)
 
-# Precision calculation
-precision_metric = sv.metrics.Precision()
-precision_result = precision_metric.update(predictions, targets).compute()
+# Create detection callback
+def callback(image):
+    result = model(image)[0]
+    return sv.Detections.from_ultralytics(result)
+
+# Run benchmarks
+precision = sv.metrics.Precision(metric_target=sv.metrics.MetricTarget.BOXES)
+recall = sv.metrics.Recall()
+f1_score = sv.metrics.F1Score()
+mean_ap = sv.metrics.MeanAveragePrecision()
+
+# Process dataset and update metrics
+for _, image, ground_truth in dataset:
+    predictions = callback(image)
+    precision.update(predictions, ground_truth)
+    recall.update(predictions, ground_truth)
+    f1_score.update(predictions, ground_truth)
+    mean_ap.update(predictions, ground_truth)
+
+# Get results
+precision_result = precision.compute()
+recall_result = recall.compute()
+f1_score_result = f1_score.compute()
+map_result = mean_ap.compute()
+
 print(f"Precision@50: {precision_result.precision_at_50:.4f}")
-
-# mAP calculation
-map_metric = sv.metrics.MeanAveragePrecision()
-map_result = map_metric.update(predictions, targets).compute()
+print(f"Recall@50: {recall_result.recall_at_50:.4f}")
+print(f"F1@50: {f1_score_result.f1_50:.4f}")
 print(f"mAP@50-95: {map_result.map50_95:.4f}")
+
+# Visualize results
+precision_result.plot()
+map_result.plot()
 ```
 
 ## 💜 built with supervision
@@ -319,10 +382,52 @@ https://github.com/roboflow/supervision/assets/26109316/c9436828-9fbf-4c25-ae8c-
 
 https://github.com/roboflow/supervision/assets/26109316/3ac6982f-4943-4108-9b7f-51787ef1a69f
 
-## 📚 documentation
+## 📝 examples
 
-Visit our [documentation](https://roboflow.github.io/supervision) page to learn how supervision can help you build computer vision applications faster and more reliably.
+Explore our real-world examples:
+
+- **[Tracking](./examples/tracking)**: Object tracking with ByteTrack
+- **[Count People in Zone](./examples/count_people_in_zone)**: Count objects within defined areas
+- **[Traffic Analysis](./examples/traffic_analysis)**: Analyze vehicle movement patterns
+- **[Speed Estimation](./examples/speed_estimation)**: Calculate object speeds using perspective transforms
+- **[Time in Zone](./examples/time_in_zone)**: Measure how long objects remain in defined areas
+- **[Heatmap and Track](./examples/heatmap_and_track)**: Visualize movement patterns with heatmaps
+
+## 📚 documentation & resources
+
+- **[Official Documentation](https://supervision.roboflow.com/)**: Comprehensive guides, API references, and examples
+- **[Colab Notebook](https://colab.research.google.com/github/roboflow/supervision/blob/main/demo.ipynb)**: Interactive demo you can run in your browser
+- **[Cheatsheet](https://roboflow.github.io/cheatsheet-supervision/)**: Quick reference for common operations
+- **[Discord Community](https://discord.gg/GbfgXGJ8Bk)**: Join us for discussions, questions, and collaboration
 
 ## 🏆 contribution
 
-We love your input! Please see our [contributing guide](https://github.com/roboflow/supervision/blob/main/CONTRIBUTING.md) to get started. Thank you 🙏 to all our contributors!
+We welcome contributions of all sizes! Here's how to get involved:
+
+1. **Start with Issues**: Look for [issues labeled "good first issue"](https://github.com/roboflow/supervision/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+2. **Read the Guide**: Our [CONTRIBUTING.md](https://github.com/roboflow/supervision/blob/main/CONTRIBUTING.md) has detailed instructions
+3. **Setup Dev Environment**: 
+   ```bash
+   git clone https://github.com/roboflow/supervision.git
+   cd supervision
+   pip install -e ".[dev]"
+   pre-commit install
+   ```
+4. **Run Tests**: Ensure your changes pass all tests with `pytest`
+
+Want to contribute but not sure where to start? Join our [Discord](https://discord.gg/GbfgXGJ8Bk) and we'll help you find a suitable project!
+
+## 📊 citation
+
+If you use Supervision in your research, please cite:
+
+```bibtex
+@misc{supervision2023,
+  author = {Roboflow},
+  title = {Supervision: A set of utilities for computer vision},
+  year = {2023},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/roboflow/supervision}}
+}
+```
