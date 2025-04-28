@@ -28,6 +28,9 @@ Supervision is an open-source Python library designed to simplify the developmen
 - **Inference**: Easily integrate with Roboflow for model inference.
 - **Annotators**: Provides tools for annotating images and videos with bounding boxes, masks, and more.
 - **Datasets**: Simplifies loading, splitting, merging, and saving datasets in popular formats like COCO, YOLO, and Pascal VOC.
+- **Metrics**: Calculate common evaluation metrics like mAP, precision, recall, and F1 score.
+- **Tracking**: Incorporate object tracking capabilities with ByteTrack integration.
+- **Video Processing**: Utilities for handling video frames, FPS monitoring, and video file manipulation.
 
 ### Goals
 
@@ -165,7 +168,7 @@ for path, image, annotation in ds:
     # loads image on demand
 ```
 
-<details close>
+<details>
 <summary>👉 more dataset utils</summary>
 
 - load
@@ -255,7 +258,58 @@ for path, image, annotation in ds:
 
 </details>
 
+### tracking
 
+Tracking objects in video streams is a common task in computer vision. Supervision makes it easy with its ByteTrack integration:
+
+```python
+import supervision as sv
+from ultralytics import YOLO
+
+model = YOLO("yolov8n.pt")
+tracker = sv.ByteTrack()
+
+video_info = sv.VideoInfo.from_video_path(video_path="video.mp4")
+frames_generator = sv.get_video_frames_generator(source_path="video.mp4")
+
+with sv.VideoSink(target_path="output.mp4", video_info=video_info) as sink:
+    for frame in frames_generator:
+        result = model(frame)[0]
+        detections = sv.Detections.from_ultralytics(result)
+        detections = tracker.update_with_detections(detections)
+        
+        box_annotator = sv.BoxAnnotator()
+        trace_annotator = sv.TraceAnnotator()
+        
+        annotated_frame = frame.copy()
+        annotated_frame = trace_annotator.annotate(scene=annotated_frame, detections=detections)
+        annotated_frame = box_annotator.annotate(scene=annotated_frame, detections=detections)
+        
+        sink.write_frame(annotated_frame)
+```
+
+https://github.com/roboflow/supervision/assets/26109316/3ac6982f-4943-4108-9b7f-51787ef1a69f
+
+### metrics
+
+Evaluate your model's performance with built-in metrics:
+
+```python
+import supervision as sv
+
+predictions = sv.Detections(...)
+targets = sv.Detections(...)
+
+# Precision calculation
+precision_metric = sv.metrics.Precision()
+precision_result = precision_metric.update(predictions, targets).compute()
+print(f"Precision@50: {precision_result.precision_at_50:.4f}")
+
+# mAP calculation
+map_metric = sv.metrics.MeanAveragePrecision()
+map_result = map_metric.update(predictions, targets).compute()
+print(f"mAP@50-95: {map_result.map50_95:.4f}")
+```
 
 ## 💜 built with supervision
 
@@ -272,4 +326,3 @@ Visit our [documentation](https://roboflow.github.io/supervision) page to learn 
 ## 🏆 contribution
 
 We love your input! Please see our [contributing guide](https://github.com/roboflow/supervision/blob/main/CONTRIBUTING.md) to get started. Thank you 🙏 to all our contributors!
-
